@@ -116,4 +116,3 @@ $> docker run \
 
 Once the controller is launched and the controller has initialized the datastore
 you should be able to login via http://[ip-of-host]:8080.
-
