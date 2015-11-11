@@ -126,7 +126,7 @@ start_discovery() {
         --restart=always \
         --name $PREFIX-discovery \
         microbox/etcd:latest -addr $SHIPYARD_IP:$DISCOVERY_PORT -peer-addr $SHIPYARD_IP:$DISCOVERY_PEER_PORT)
-      echo "start_discovery $(docker run \
+      echo "start_discovery docker run \
           -ti \
           -d \
           -p 4001:4001 \
