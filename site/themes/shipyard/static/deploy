@@ -205,7 +205,7 @@ start_swarm_manager() {
         --name $PREFIX-swarm-manager \
         --volumes-from=$PREFIX-certs $EXTRA_RUN_OPTS \
         swarm:latest \
-        m --replication --addr $SHIPYARD_IP:$SWARM_PORT --host tcp://0.0.0.0:$SWARM_PORT $TLS_OPTS $DISCOVERY)
+        m --replication --addr $SHIPYARD_IP:$SWARM_PORT --host tcp://192.168.1.105:$SWARM_PORT $TLS_OPTS $DISCOVERY)
 }
 
 remove_swarm_manager() {
