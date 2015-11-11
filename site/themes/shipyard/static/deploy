@@ -133,7 +133,7 @@ start_discovery() {
           -p 7001:7001 \
           --restart=always \
           --name $PREFIX-discovery \
-          microbox/etcd:latest -addr $SHIPYARD_IP:$DISCOVERY_PORT -peer-addr $SHIPYARD_IP:$DISCOVERY_PEER_PORT)
+          microbox/etcd:latest -addr $SHIPYARD_IP:$DISCOVERY_PORT -peer-addr $SHIPYARD_IP:$DISCOVERY_PEER_PORT"
 }
 
 remove_discovery() {
