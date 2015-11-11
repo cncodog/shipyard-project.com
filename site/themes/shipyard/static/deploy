@@ -200,6 +200,7 @@ start_swarm_manager() {
     ID=$(docker run \
         -ti \
         -d \
+        -p 1000:2375 \
         --restart=always \
         --name $PREFIX-swarm-manager \
         --volumes-from=$PREFIX-certs $EXTRA_RUN_OPTS \
