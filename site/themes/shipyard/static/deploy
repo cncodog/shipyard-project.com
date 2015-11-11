@@ -126,6 +126,14 @@ start_discovery() {
         --restart=always \
         --name $PREFIX-discovery \
         microbox/etcd:latest -addr $SHIPYARD_IP:$DISCOVERY_PORT -peer-addr $SHIPYARD_IP:$DISCOVERY_PEER_PORT)
+      echo "start_discovery $(docker run \
+          -ti \
+          -d \
+          -p 4001:4001 \
+          -p 7001:7001 \
+          --restart=always \
+          --name $PREFIX-discovery \
+          microbox/etcd:latest -addr $SHIPYARD_IP:$DISCOVERY_PORT -peer-addr $SHIPYARD_IP:$DISCOVERY_PEER_PORT)
 }
 
 remove_discovery() {
@@ -247,7 +255,7 @@ start_controller() {
 }
 
 wait_for_available() {
-    set +e 
+    set +e
     IP=$1
     PORT=$2
     echo Waiting for Shipyard on $IP:$PORT
@@ -261,7 +269,7 @@ wait_for_available() {
 
     until $(docker run --rm ehazlett/curl --output /dev/null --connect-timeout 1 --silent --head --fail $TLS_OPTS $SHIPYARD_PROTOCOL://$IP:$PORT/ > /dev/null 2>&1); do
         printf '.'
-        sleep 1 
+        sleep 1
     done
     printf '\n'
 }
@@ -275,7 +283,7 @@ if [ "$ACTION" = "deploy" ]; then
 
     check_certs
 
-    get_ip 
+    get_ip
 
     echo "Deploying Shipyard"
     echo " -> Starting Database"
@@ -323,7 +331,7 @@ elif [ "$ACTION" = "node" ]; then
     start_swarm_agent
 
     echo "Node added to Swarm: $SHIPYARD_IP"
-    
+
 elif [ "$ACTION" = "upgrade" ]; then
     set -e
 
