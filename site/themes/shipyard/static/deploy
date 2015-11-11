@@ -90,15 +90,6 @@ check_certs() {
 
 # container functions
 start_certs() {
-    echo "start_certs  - docker run \
-                                 -ti \
-                                 -d \
-                                 --restart=always \
-                                 --name $PREFIX-certs \
-                                 -v $CERT_PATH \
-                                 alpine \
-                                 sh"
-
     ID=$(docker run \
         -ti \
         -d \
@@ -126,14 +117,7 @@ get_ip() {
 
 start_discovery() {
     get_ip
- echo "start_discovery |docker run \
-                               -ti \
-                               -d \
-                               -p 4001:4001 \
-                               -p 7001:7001 \
-                               --restart=always \
-                               --name $PREFIX-discovery \
-                               microbox/etcd:latest -addr $SHIPYARD_IP:$DISCOVERY_PORT -peer-addr $SHIPYARD_IP:$DISCOVERY_PEER_PORT"
+
     ID=$(docker run \
         -ti \
         -d \
@@ -149,7 +133,7 @@ start_discovery() {
           -p 7001:7001 \
           --restart=always \
           --name $PREFIX-discovery \
-          microbox/etcd:latest -addr $SHIPYARD_IP:$DISCOVERY_PORT -peer-addr $SHIPYARD_IP:$DISCOVERY_PEER_PORT"
+          microbox/etcd:latest -addr $SHIPYARD_IP:$DISCOVERY_PORT -peer-addr $SHIPYARD_IP:$DISCOVERY_PEER_PORT)
 }
 
 remove_discovery() {
@@ -157,16 +141,6 @@ remove_discovery() {
 }
 
 start_rethinkdb() {
-
-echo "start_rethinkdb | docker run \
-                                -ti \
-                                -d \
-                                -p 8000:8080 \
-                                -p 28015:28015 \
-                                -p 29015:29015 \
-                                --restart=always \
-                                --name $PREFIX-rethinkdb \
-                                rethinkdb"
     ID=$(docker run \
         -ti \
         -d \
@@ -192,20 +166,6 @@ start_proxy() {
     # does verify.  this helps with performance and avoids certificate issues
     # when running through the proxy.  ultimately if the cert is invalid
     # swarm will fail to return.
-
-    echo "start_proxy docker run \
-                              -ti \
-                              -d \
-                              -p $PROXY_PORT:$PROXY_PORT \
-                              --hostname=$HOSTNAME \
-                              --restart=always \
-                              --name $PREFIX-proxy \
-                              -v /var/run/docker.sock:/var/run/docker.sock \
-                              -e PORT=$PROXY_PORT \
-                              --volumes-from=$PREFIX-certs $TLS_OPTS\
-                              ehazlett/docker-proxy:latest"
-
-
     ID=$(docker run \
         -ti \
         -d \
@@ -237,17 +197,6 @@ start_swarm_manager() {
         DISCOVERY="$DISCOVERY_BACKEND://discovery:$DISCOVERY_PORT"
         EXTRA_RUN_OPTS="--link $PREFIX-discovery:discovery"
     fi
-
-     echo "start_swarm_manager docker run \
-                                       -ti \
-                                       -d \
-                                       --restart=always \
-                                       --name $PREFIX-swarm-manager \
-                                       --volumes-from=$PREFIX-certs $EXTRA_RUN_OPTS \
-                                       swarm:latest \
-                                       m --replication --addr $SHIPYARD_IP:$SWARM_PORT --host tcp://0.0.0.0:$SWARM_PORT $TLS_OPTS $DISCOVERY"
-
-
     ID=$(docker run \
         -ti \
         -d \
@@ -269,14 +218,6 @@ start_swarm_agent() {
         DISCOVERY="$DISCOVERY_BACKEND://discovery:$DISCOVERY_PORT"
         EXTRA_RUN_OPTS="--link $PREFIX-discovery:discovery"
     fi
-
-    echo "start_swarm_agent docker run \
-                                      -ti \
-                                      -d \
-                                      --restart=always \
-                                      --name $PREFIX-swarm-agent $EXTRA_RUN_OPTS \
-                                      swarm:latest \
-                                      j --addr $SHIPYARD_IP:$PROXY_PORT $DISCOVERY"
     ID=$(docker run \
         -ti \
         -d \
@@ -296,20 +237,7 @@ start_controller() {
     if [ $ENABLE_TLS = 1 ]; then
         TLS_OPTS="--tls-ca-cert $SSL_CA_CERT --tls-cert=$SSL_CERT --tls-key=$SSL_KEY --shipyard-tls-ca-cert=$SSL_CA_CERT --shipyard-tls-cert=$SSL_CERT --shipyard-tls-key=$SSL_KEY"
     fi
-echo "start_controller |docker run \
-                                -ti \
-                                -d \
-                                --restart=always \
-                                --name $PREFIX-controller \
-                                --link $PREFIX-rethinkdb:rethinkdb \
-                                --link $PREFIX-swarm-manager:swarm \
-                                -p $SHIPYARD_PORT:$SHIPYARD_PORT \
-                                --volumes-from=$PREFIX-certs \
-                                $IMAGE \
-                                --debug \
-                                server \
-                                --listen :$SHIPYARD_PORT \
-                                -d tcp://swarm:$SWARM_PORT $TLS_OPTS $SHIPYARD_ARGS"
+
     ID=$(docker run \
         -ti \
         -d \
@@ -324,6 +252,21 @@ echo "start_controller |docker run \
         server \
         --listen :$SHIPYARD_PORT \
         -d tcp://swarm:$SWARM_PORT $TLS_OPTS $SHIPYARD_ARGS)
+
+        echo "docker run \
+                      -ti \
+                      -d \
+                      --restart=always \
+                      --name $PREFIX-controller \
+                      --link $PREFIX-rethinkdb:rethinkdb \
+                      --link $PREFIX-swarm-manager:swarm \
+                      -p $SHIPYARD_PORT:$SHIPYARD_PORT \
+                      --volumes-from=$PREFIX-certs \
+                      $IMAGE \
+                      --debug \
+                      server \
+                      --listen :$SHIPYARD_PORT \
+                      -d tcp://swarm:$SWARM_PORT $TLS_OPTS $SHIPYARD_ARGS"
 }
 
 wait_for_available() {
