@@ -9,6 +9,7 @@ if [ "$1" != "" ] && [ "$1" = "-h" ]; then
     echo "  SHIPYARD_ARGS: these are passed to the Shipyard controller container as controller args"
     echo "  TLS_CERT_PATH: path to certs to enable TLS for Shipyard"
     echo "  PORT: specify the listen port for the controller (default: 8080)"
+    echo "  IP: specify the address at which the controller or node will be available (default: eth0 ip)"
     echo "  PROXY_PORT: port to run docker proxy (default: 2375)"
     exit 1
 fi
@@ -29,6 +30,7 @@ PROXY_PORT=${PROXY_PORT:-2375}
 SWARM_PORT=3375
 SHIPYARD_PROTOCOL=http
 SHIPYARD_PORT=${PORT:-8080}
+SHIPYARD_IP=${IP}
 DISCOVERY_BACKEND=etcd
 DISCOVERY_PORT=4001
 DISCOVERY_PEER_PORT=7001
@@ -112,7 +114,9 @@ remove_certs() {
 }
 
 get_ip() {
-    SHIPYARD_IP=`docker run --rm --net=host alpine ip route get 8.8.8.8 | awk '{ print $7;  }'`
+    if [ -z "$SHIPYARD_IP" ]; then
+        SHIPYARD_IP=`docker run --rm --net=host alpine ip route get 8.8.8.8 | awk '{ print $7;  }'`
+    fi
 }
 
 start_discovery() {
@@ -126,14 +130,6 @@ start_discovery() {
         --restart=always \
         --name $PREFIX-discovery \
         microbox/etcd:latest -addr $SHIPYARD_IP:$DISCOVERY_PORT -peer-addr $SHIPYARD_IP:$DISCOVERY_PEER_PORT)
-      echo "start_discovery docker run \
-          -ti \
-          -d \
-          -p 4001:4001 \
-          -p 7001:7001 \
-          --restart=always \
-          --name $PREFIX-discovery \
-          microbox/etcd:latest -addr $SHIPYARD_IP:$DISCOVERY_PORT -peer-addr $SHIPYARD_IP:$DISCOVERY_PEER_PORT"
 }
 
 remove_discovery() {
@@ -144,9 +140,6 @@ start_rethinkdb() {
     ID=$(docker run \
         -ti \
         -d \
-        -p 8000:8080 \
-        -p 28015:28015 \
-        -p 29015:29015 \
         --restart=always \
         --name $PREFIX-rethinkdb \
         rethinkdb)
@@ -200,12 +193,11 @@ start_swarm_manager() {
     ID=$(docker run \
         -ti \
         -d \
-        -p 1000:2375 \
         --restart=always \
         --name $PREFIX-swarm-manager \
         --volumes-from=$PREFIX-certs $EXTRA_RUN_OPTS \
         swarm:latest \
-        m --replication --addr $SHIPYARD_IP:$SWARM_PORT --host tcp://192.168.1.105:$SWARM_PORT $TLS_OPTS $DISCOVERY)
+        m --replication --addr $SHIPYARD_IP:$SWARM_PORT --host tcp://0.0.0.0:$SWARM_PORT $TLS_OPTS $DISCOVERY)
 }
 
 remove_swarm_manager() {
@@ -253,25 +245,10 @@ start_controller() {
         server \
         --listen :$SHIPYARD_PORT \
         -d tcp://swarm:$SWARM_PORT $TLS_OPTS $SHIPYARD_ARGS)
-
-        echo "docker run \
-                      -ti \
-                      -d \
-                      --restart=always \
-                      --name $PREFIX-controller \
-                      --link $PREFIX-rethinkdb:rethinkdb \
-                      --link $PREFIX-swarm-manager:swarm \
-                      -p $SHIPYARD_PORT:$SHIPYARD_PORT \
-                      --volumes-from=$PREFIX-certs \
-                      $IMAGE \
-                      --debug \
-                      server \
-                      --listen :$SHIPYARD_PORT \
-                      -d tcp://swarm:$SWARM_PORT $TLS_OPTS $SHIPYARD_ARGS"
 }
 
 wait_for_available() {
-    set +e
+    set +e 
     IP=$1
     PORT=$2
     echo Waiting for Shipyard on $IP:$PORT
@@ -285,7 +262,7 @@ wait_for_available() {
 
     until $(docker run --rm ehazlett/curl --output /dev/null --connect-timeout 1 --silent --head --fail $TLS_OPTS $SHIPYARD_PROTOCOL://$IP:$PORT/ > /dev/null 2>&1); do
         printf '.'
-        sleep 1
+        sleep 1 
     done
     printf '\n'
 }
@@ -299,7 +276,7 @@ if [ "$ACTION" = "deploy" ]; then
 
     check_certs
 
-    get_ip
+    get_ip 
 
     echo "Deploying Shipyard"
     echo " -> Starting Database"
@@ -347,7 +324,7 @@ elif [ "$ACTION" = "node" ]; then
     start_swarm_agent
 
     echo "Node added to Swarm: $SHIPYARD_IP"
-
+    
 elif [ "$ACTION" = "upgrade" ]; then
     set -e
 
@@ -363,7 +340,7 @@ elif [ "$ACTION" = "upgrade" ]; then
     remove_controller
     start_controller
 
-    wait_for_available $SHIPYARD_IP 8080
+    wait_for_available $SHIPYARD_IP $SHIPYARD_PORT
 
     echo "Shipyard controller updated"
 
